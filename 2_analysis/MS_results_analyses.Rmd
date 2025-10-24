@@ -1,0 +1,610 @@
+---
+#title: "2025_LLM_abstract_internalizing_sx"
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+  pdf_document: default
+date: "2025-10-24"
+---
+
+# Large Language Models Reveal Accelerated Abstract Processing During Social Interpretation in Trait Internalizing Symptoms
+## MS Results
+
+```{r start, include=FALSE}
+rm(list=ls())
+
+library(VCA)
+library(ppcor)
+library(factoextra)
+library(dplyr)
+library(brms)
+library(arm)
+library(pROC); library(plotROC)
+library(stringr)
+library(ggcorrplot)
+library(ggpubr)
+library(ggeffects)
+library(jtools)
+library(broom)
+library(purrr)
+library(car)
+library(qdap)
+library(lme4)
+library(readxl)
+library(caret)
+library(gtsummary)
+
+library(robustbase)
+library(knitr)
+library(kableExtra)
+library(broom)
+library(sjPlot)
+library(psych)
+library(gtsummary)
+library(tidyr)
+library(lmerTest)
+library(rcartocolor)  
+library(rstatix)      
+library(forcats)
+library(corrplot)
+library(irr)
+library(gtsummary)
+
+# set wd
+dat_dir <- '/Users/jihyunhur/Yale/2_Github/2025_LLM_abstract_internalizing_sx/1_data'
+cur_dir <- '/Users/jihyunhur/Yale/2_Github/2025_LLM_abstract_internalizing_sx/2_analysis'
+fig_dir <- '/Users/jihyunhur/Yale/2_Github/2025_LLM_abstract_internalizing_sx/3_figures'
+
+pilot_data <- read.csv(file.path(dat_dir, 'pilot_data_final.csv'))
+confirm_data <- read.csv(file.path(dat_dir, 'confirm_data_final.csv'))
+
+all_data <- bind_rows(pilot_data, confirm_data)
+```
+
+```{r data exclusion}
+pilot_final  <- pilot_data %>% filter(excluded_subj == 0)
+confirm_final <- confirm_data %>% filter(excluded_subj == 0)
+```
+
+## Negativity Bias
+```{r neg bias corr}
+# Correlation: Trait Internalizing Symptoms ~ Mean Negativity Scores 
+confirm_tmp <- confirm_final %>% group_by(subj) %>%
+                            summarise(mean_negativity = mean(negativity_gpt, na.rm=T),
+                                      mean_relative_abstractness = mean(relative_abstractness_gpt, na.rm=T),
+                                      activated_distress = unique(PC1_score),
+                                      trait_internalizing = unique(PC2_score),
+                                      non_dep_anxiety = unique(PC3_score))
+
+cor.test(confirm_tmp$mean_negativity, confirm_tmp$trait_internalizing, method="spearman")
+```
+### Negativity Main
+```{r neg bias reg}
+# No Demographic Confoundings
+model_neg_simple <- lmer(
+  negativity_gpt ~  PC2_score + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_neg_simple,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),               
+               label = list('PC2_score' = 'Trait Internalizing Score'))
+
+# Including Demographic Confoundings
+model_neg_full <- lmer(
+  negativity_gpt ~  PC2_score + 
+                    word_counts + age + gender + edu + relative_abstractness_gpt + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_neg_full,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),               
+               label = list('PC2_score' = 'Trait Internalizing Score',
+                            'word_counts' = 'Word Counts',
+                            'age' = 'Age',
+                            'gender' = 'Gender',
+                            'edu' = 'Education',
+                            'relative_abstractness_gpt' = 'GPT Relative Abstractness'))
+```
+
+### Negativity Val Moderation
+```{r neg bias valence moderation reg}
+# No Demographic Confoundings
+model_neg_moderate_simple <- lmer(
+  negativity_gpt ~  PC2_score*prompt_val + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_neg_moderate_simple,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),               
+               label = list('PC2_score' = 'Trait Internalizing Score',
+                            'prompt_val' = 'Scenario Valence'))
+
+# Including Demographic Confoundings
+model_neg_moderate_full <- lmer(
+  negativity_gpt ~  PC2_score*prompt_val + 
+                    word_counts + age + gender + edu + relative_abstractness_gpt + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_neg_moderate_full,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),               
+               label = list('PC2_score' = 'Trait Internalizing Score',
+                            'prompt_val' = 'Scenario Valence',
+                            'word_counts' = 'Word Counts',
+                            'age' = 'Age',
+                            'gender' = 'Gender',
+                            'edu' = 'Education',
+                            'relative_abstractness_gpt' = 'GPT Relative Abstractness'))
+```
+
+### Figure 1
+```{r figure 1}
+model_neg_predict_main <- ggeffects::ggpredict(model_neg_simple, c("PC2_score"))
+model_neg_predict_mod  <- ggeffects::ggpredict(model_neg_moderate_simple, c("PC2_score", "prompt_val"))
+
+# -----------
+# Fig 1a
+# -----------
+fig1a <- plot(model_neg_predict_main) + 
+  xlab('Trait Internalizing Symptoms') + 
+  ylab('GPT Negativity Score') +
+  theme_classic() + 
+  theme(legend.position = "top",
+        text = element_text(size=13)) + 
+  ggtitle("") + ylim(c(0,4)) +
+  theme(plot.margin = margin(t = 10, r = 5, b = 5, l = 5))
+
+# -----------
+# Fig 1b
+# -----------
+fig1b <- plot(model_neg_predict_mod) + 
+  xlab('Trait Internalizing Symptoms') + 
+  ylab('GPT Negativity Score') +
+  scale_colour_brewer(palette = "Set1", 
+                      labels = c("Negative", "Positive/Neutral")) + 
+  scale_fill_brewer(palette = "Set1") +
+  theme_classic() + 
+  theme(legend.justification = c("right", "bottom"),
+        text = element_text(size=13)) + 
+  ggtitle("") + labs(colour = "Valence") +
+  theme(plot.margin = margin(t = 10, r = 5, b = 5, l = 5))
+
+# -----------
+# Fig 1ab
+# -----------
+fig1 <- ggarrange(fig1a, fig1b, ncol = 2, nrow = 1, 
+                  align = "h", 
+                  labels=c("A", "B"), 
+                  widths = c(1,1.5))
+
+print(fig1)
+
+# -----------
+# Save Figure
+# ggsave(filename=file.path(fig_dir, 'fig1.jpg'), fig1, 
+#        dpi = 600, 
+#        width = 8, 
+#        height = 4)
+# -----------
+```
+
+### Negativity Stage Moderation
+```{r neg bias stage moderation reg}
+# No Demographic Confoundings
+model_neg_stage_moderate_simple <- lmer(
+  negativity_gpt ~  PC2_score*prompt_stage + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_neg_stage_moderate_simple,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),               
+               label = list('PC2_score' = 'Trait Internalizing Score',
+                            'prompt_stage' = 'Scenario Stage'))
+
+# Including Demographic Confoundings
+model_neg_stage_moderate_full <- lmer(
+  negativity_gpt ~  PC2_score*prompt_stage + 
+                    word_counts + age + gender + edu + relative_abstractness_gpt + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_neg_stage_moderate_full,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC2_score' = 'Trait Internalizing Score',
+                            'prompt_stage' = 'Scenario Stage',
+                            'word_counts' = 'Word Counts',
+                            'age' = 'Age',
+                            'gender' = 'Gender',
+                            'edu' = 'Education',
+                            'relative_abstractness_gpt' = 'GPT Relative Abstractness'))
+```
+
+### Negativity Val*Stage Moderation (Post-Hoc)
+```{r neg bias val*stage moderation reg (post-hoc)}
+# No Demographic Confoundings
+model_neg_val_stage_moderate_simple <- lmer(
+  negativity_gpt ~  PC2_score*prompt_val*prompt_stage + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_neg_val_stage_moderate_simple,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC2_score' = 'Trait Internalizing Score',
+                            'prompt_val' = 'Scenario Valence',
+                            'prompt_stage' = 'Scenario Stage'))
+```
+
+### Others Negativity
+```{r neg other PCA scores}
+cor.test(confirm_tmp$mean_negativity, confirm_tmp$activated_distress, method="spearman")
+cor.test(confirm_tmp$mean_negativity, confirm_tmp$non_dep_anxiety, method="spearman")
+```
+```{r neg bias reg other PCA scores}
+# No Demographic Confoundings
+model_neg_simple_pc1 <- lmer(
+  negativity_gpt ~  PC1_score + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_neg_simple_pc1,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC1_score' = 'Activated Distress Score'))
+
+# No Demographic Confoundings
+model_neg_simple_pc3 <- lmer(
+  negativity_gpt ~  PC3_score + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_neg_simple_pc3,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC3_score' = 'Non-Depressive Anxiety'))
+
+```
+
+## Relative Abstractness
+```{r relative abstractness corr}
+# Correlation: Trait Internalizing Symptoms ~ Mean Relative Abstractness
+confirm_tmp <- confirm_final %>% group_by(subj) %>%
+                            summarise(mean_relative_abstractness = mean(relative_abstractness_gpt, na.rm=T),
+                                      trait_internalizing = unique(PC2_score))
+
+cor.test(confirm_tmp$mean_relative_abstractness, confirm_tmp$trait_internalizing, method="spearman")
+```
+### Relative Abstractness Main
+```{r abs reg}
+# No Demographic Confoundings
+model_abs_simple <- lmer(
+  relative_abstractness_gpt ~  PC2_score + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_abs_simple,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC2_score' = 'Trait Internalizing Score'))
+
+# Including Demographic Confoundings
+model_abs_full <- lmer(
+  relative_abstractness_gpt ~  PC2_score + 
+                    word_counts + age + gender + edu + negativity_gpt + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_abs_full,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC2_score' = 'Trait Internalizing Score',
+                            'word_counts' = 'Word Counts',
+                            'age' = 'Age',
+                            'gender' = 'Gender',
+                            'edu' = 'Education',
+                            'negativity_gpt' = 'GPT Negativity'))
+```
+
+### Relative Abstractness Val Moderation
+```{r abs valence moderation reg}
+# No Demographic Confoundings
+model_abs_moderate_simple <- lmer(
+  relative_abstractness_gpt ~  PC2_score*prompt_val + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_abs_moderate_simple,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC2_score' = 'Trait Internalizing Score',
+                            'prompt_val' = 'Scenario Valence'))
+
+# Including Demographic Confoundings
+model_abs_moderate_full <- lmer(
+  relative_abstractness_gpt ~  PC2_score*prompt_val + 
+                    word_counts + age + gender + edu + negativity_gpt + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_abs_moderate_full,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC2_score' = 'Trait Internalizing Score',
+                            'prompt_val' = 'Scenario Valence',
+                            'word_counts' = 'Word Counts',
+                            'age' = 'Age',
+                            'gender' = 'Gender',
+                            'edu' = 'Education',
+                            'negativity_gpt' = 'GPT Negativity'))
+```
+
+### Relative Abstractness Stage Moderation
+```{r abs stage moderation reg}
+# No Demographic Confoundings
+model_abs_stage_moderate_simple <- lmer(
+  relative_abstractness_gpt ~  PC2_score*prompt_stage + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_abs_stage_moderate_simple,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC2_score' = 'Trait Internalizing Score',
+                            'prompt_stage' = 'Scenario Stage'))
+
+# Including Demographic Confoundings
+model_abs_stage_moderate_full <- lmer(
+  relative_abstractness_gpt ~  PC2_score*prompt_stage + 
+                    word_counts + age + gender + edu + negativity_gpt + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_abs_stage_moderate_full,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC2_score' = 'Trait Internalizing Score',
+                            'prompt_stage' = 'Scenario Stage',
+                            'word_counts' = 'Word Counts',
+                            'age' = 'Age',
+                            'gender' = 'Gender',
+                            'edu' = 'Education',
+                            'negativity_gpt' = 'GPT Negativity'))
+```
+
+### Figure 2
+```{r figure 2}
+model_abs_predict_mod  <- ggeffects::ggpredict(model_abs_stage_moderate_simple, c("PC2_score", "prompt_stage"))
+
+# -----------
+# Fig 2
+# -----------
+fig2 <- plot(model_abs_predict_mod) + xlab('Trait Internalizing Symptoms') + 
+  ylab('GPT Relative Abstractness Score') +
+  scale_colour_brewer(palette = "Set1",
+                      labels = c("1 (80% Blurred)", "2 (20% Blurred)", "3 (0% Blurred)")) +  
+  scale_fill_brewer(palette = "Set1") +
+  theme_classic() + theme(legend.position = "top") + 
+  ggtitle("") + labs(colour = "Stage") +
+  theme(plot.margin = margin(t = 10, r = 5, b = 5, l = 5))
+
+print(fig2)
+
+# -----------
+# Save Figure
+# ggsave(fig2,
+#   filename=file.path(fig_dir, 'fig2.jpg'),
+#   dpi=600,
+#   width=5.5,
+#   height=4)
+# -----------
+```
+
+### Others Relative Abstractness Stage Moderation 
+```{r abs stage moderation reg others}
+# No Demographic Confoundings
+model_abs_stage_moderate_simple_pc1 <- lmer(
+  relative_abstractness_gpt ~  PC1_score*prompt_stage + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_abs_stage_moderate_simple_pc1,
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               pvalue_fun = label_style_pvalue(digits = 3),
+               label = list('PC1_score' = 'Activated General Distress Score',
+                            'prompt_stage' = 'Scenario Stage'))
+
+# No Demographic Confoundings
+model_abs_stage_moderate_simple_pc3 <- lmer(
+  relative_abstractness_gpt ~  PC3_score*prompt_stage + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_abs_stage_moderate_simple_pc3,
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               pvalue_fun = label_style_pvalue(digits = 3),
+               label = list('PC3_score' = 'Non-Depressive Anxiety Score',
+                            'prompt_stage' = 'Scenario Stage'))
+```
+
+## Figure 3 Relative Abstractness Change 
+```{r relative abs change}
+confirm_final <- confirm_final %>%
+  arrange(subj, prompt_val_set, prompt_stage) %>%                  
+  group_by(subj, prompt_val_set) %>%                               
+  mutate(relative_abstract_diff = relative_abstractness_gpt - dplyr::lag(relative_abstractness_gpt),
+         negativity_diff = negativity_gpt - dplyr::lag(negativity_gpt),
+         word_counts_diff = word_counts - dplyr::lag(word_counts)) %>%
+  ungroup()
+
+tmp_data <- confirm_final %>% filter(prompt_stage != "a") %>% 
+  group_by(subj) %>% 
+  summarise(mean_relative_abstract_diff = mean(relative_abstract_diff, na.rm=T),
+            mean_negativity_diff = mean(negativity_diff, na.rm=T),
+            mean_word_counts_diff = mean(word_counts_diff, na.rm=T),
+            age = unique(age),
+            gender = unique(gender),
+            edu = unique(edu),
+         PC2_score = unique(PC2_score),
+         PC1_score = unique(PC1_score),
+         PC3_score = unique(PC3_score))
+
+tmp_data <- tmp_data %>%
+  mutate(PC2_group = ifelse(PC2_score >= median(tmp_data$PC2_score, na.rm = TRUE),
+                            "High", "Low"))
+
+p <- ggplot(tmp_data, aes(x = PC2_group, y = mean_relative_abstract_diff, fill = PC2_group)) +
+  geom_boxplot(alpha = 0.7, width = 0.6, outlier.shape = NA) +
+  geom_jitter(width = 0.15, alpha = 0.6, size = 2) +
+  ylim(c(-0.05, 0.2)) +
+  labs(
+    x = "Trait Internalizing Symptoms Group",
+    y = "GPT Mean Relative Abstractness Change",
+    title = ""
+  ) +
+  theme_bw(base_size = 14) +
+  theme(legend.position = "none")
+
+# -----------
+# Fig 3a
+# -----------
+fig3a <- p + stat_compare_means(
+      method = "t.test",         
+      symnum.args = list(
+          cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, Inf),
+          symbols = c("****", "***", "**", "*", "ns")
+        ),
+      comparisons = list(c("Low", "High")),
+      label.y = 0.175,
+      size = 8
+    )
+
+# Independent samples t-test
+# t_test_result <- t.test(mean_relative_abstract_diff ~ PC2_group, data = tmp_data, var.equal = FALSE)
+# print(t_test_result)
+
+model_abs_change_simple <- lm(
+  mean_relative_abstract_diff ~ PC2_score, 
+  data = tmp_data
+)
+
+tbl_regression(model_abs_change_simple, 
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               pvalue_fun = label_style_pvalue(digits = 3))
+
+model_abstract_change_main <- ggeffects::ggpredict(model_abs_change_simple, c("PC2_score"))
+
+# -----------
+# Fig 3b
+# -----------
+fig3b <- plot(model_abstract_change_main) + xlab('Trait Internalizing Symptoms') + 
+  ylab('GPT Mean Relative Abstractness Change') +
+  scale_colour_brewer(palette = "Set1",
+                      labels = c("1", "2", "3")) +  
+  scale_fill_brewer(palette = "Set1") +
+  theme_classic() + theme(legend.position = "top",
+                          text=element_text(size=14)) + 
+  ggtitle("") + 
+  theme(plot.margin = margin(t = 10, r = 5, b = 5, l = 5))
+
+# -----------
+# Fig 3
+# -----------
+fig3 <- ggarrange(fig3a, fig3b, ncol=2, nrow =1, labels=c("A", "B"))
+print(fig3)
+
+# -----------
+# Save Figure
+# -----------
+ggsave(fig3, filename = file.path(fig_dir, "fig3.jpg"), dpi=600, width=8.5, height=4.5)
+
+
+model_abs_change_full <- lm(
+  mean_relative_abstract_diff ~ PC2_score + age + edu + gender + mean_negativity_diff + mean_word_counts_diff,
+  data = tmp_data
+)
+tbl_regression(model_abs_change_full, 
+               estimate_fun = ~style_sigfig(.x, digits = 4),
+               pvalue_fun = label_style_pvalue(digits = 3))
+```
+
+## Table 1
+```{r table 1}
+
+all_data %>% filter(excluded_subj == 0) %>%
+  group_by(subj) %>%
+  summarise(age = unique(age),
+            edu = unique(edu),
+            gender = unique(gender),
+            race = unique(race),
+            ethnicity = unique(ethnicity),
+            BDI_score = unique(BDI_score),
+            STAIT_score = unique(STAIT_score),
+            STAIS_score = unique(STAIS_score),
+            data_type = unique(case_when(data_type == 1 ~ 'Pilot',
+                                  data_type == 0 ~ 'Confirmatory'))) %>%
+  select(c(age, edu, gender, race, ethnicity, BDI_score, STAIT_score, STAIS_score, 
+           data_type)) %>%
+  tbl_summary(by=data_type,
+        statistic = list(all_continuous() ~ "{mean} ({sd})",
+                         all_categorical() ~ "{n} ({p}%)"),
+        digits = all_continuous() ~ 1,
+        label = list(age ~ "Age",
+                     edu ~ "Education",
+                     gender ~ "Gender",
+                     race ~ "Race",
+                     ethnicity ~ "Ethnicity")              
+        ) %>%
+  add_p()
+
+# Coding values
+# Education
+# 1 - Less than high school
+# 2 - High school
+# 3 - Some college
+# 4 - 2 year degree/Associate's degree
+# 5 - 4 year degree/Bachelor's degree
+# 6 - Master's degree
+# 7 - Doctorate
+
+# Gender
+# 1 - Male
+# 2 - Female
+# 3 - Non-Binary
+
+# Race
+# 1 - Caucasian
+# 2 - Black/African American
+# 3 - Asian
+# 4 - Native American/Indigenous
+# 5 - Native Hawaiian/Pacific Islander
+# 6 - Others
+
+# Hispanic/Latino
+# 1 - Yes
+# 2 - No
+```
