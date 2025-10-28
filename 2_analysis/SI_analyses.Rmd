@@ -1,0 +1,1010 @@
+---
+title: "Supplementary Materials"
+output:
+  word_document:
+    reference_docx: 'template.docx'
+---
+
+<br/>
+<br/>
+
+```{r setup, include = FALSE}
+library(VCA)
+library(ppcor)
+library(factoextra)
+library(dplyr)
+library(brms)
+library(arm)
+library(pROC); library(plotROC)
+library(stringr)
+library(ggcorrplot)
+library(ggpubr)
+library(ggeffects)
+library(jtools)
+library(broom)
+library(purrr)
+library(car)
+library(qdap)
+library(lme4)
+library(readxl)
+library(caret)
+library(gtsummary)
+
+library(robustbase)
+library(knitr)
+library(kableExtra)
+library(broom)
+library(sjPlot)
+library(psych)
+library(gtsummary)
+library(tidyr)
+library(lmerTest)
+library(rcartocolor)  
+library(rstatix)      
+library(forcats)
+library(corrplot)
+library(irr)
+library(gtsummary)
+library(papaja)
+library(apa)
+
+# set wd
+dat_dir <- '/Users/jihyunhur/Yale/2_Github/2025_LLM_abstract_internalizing_sx/1_data'
+cur_dir <- '/Users/jihyunhur/Yale/2_Github/2025_LLM_abstract_internalizing_sx/2_analysis'
+fig_dir <- '/Users/jihyunhur/Yale/2_Github/2025_LLM_abstract_internalizing_sx/3_figures'
+
+pilot_data <- read.csv(file.path(dat_dir, 'pilot_data_final.csv'))
+confirm_data <- read.csv(file.path(dat_dir, 'confirm_data_final.csv'))
+
+all_data <- bind_rows(pilot_data, confirm_data)
+```
+
+```{r analysis-preferences, warning=F, echo=F}
+# Seed for random number generation
+set.seed(42)
+knitr::opts_chunk$set(cache.extra = knitr::rand_seed)
+```
+
+```{r data exclusion, warning=F, echo=F}
+pilot_final  <- pilot_data %>% filter(excluded_subj == 0)
+confirm_final <- confirm_data %>% filter(excluded_subj == 0)
+
+pilot_final$prompt_stage <- factor(pilot_final$prompt_stage, levels = c("a", "b", "c"), labels = c("1", "2", "3"))
+confirm_final$prompt_stage <- factor(confirm_final$prompt_stage, levels = c("a", "b", "c"), labels = c("1", "2", "3"))
+```
+
+##### Supplementary Text 1: Intraclass Correlation Coefficient (ICC) Computation
+
+### To assess the reliability of ratings across raters, we estimated the ICC using a variance components model implemented via the *'fitVCA()'* function in R. The model specified participant and each item (e.g., each image) as crossed random effects, with an interaction term (subject × item) representing person-specific variability across items, and rater as an additional random error:
+
+\[
+\text{rating} \sim \text{subject} + \text{item} + \text{subject:item} + \text{rater}\,.
+\]
+
+### Variance components were extracted from the resulting ANOVA table, and a single-measure, consistency-type ICC was computed to quantify the proportion of variance attributable to true person-by-item differences, relative to residual error variance. We computed the single-measure consistency ICC as:
+
+\[
+\mathrm{ICC}(C,1) \;=\;
+\frac{\sigma^2_{\text{subj}} + \sigma^2_{\text{subj:item}}}
+{\sigma^2_{\text{subj}} + \sigma^2_{\text{subj:item}} + \sigma^2_{\text{resid}}}\,,
+\]
+
+where \(\sigma^2_{\text{subj}}\) and \(\sigma^2_{\text{subj:item}}\) denote the subject and subject-by-item variance components, respectively, and \(\sigma^2_{\text{resid}}\) represents residual error variance. This formulation assesses the consistency of ratings across raters (GPT vs. average human ratings) while ignoring any overall mean differences between them. An ICC value approaching 1.0 indicates that most observed variance reflects stable between-subject and subject-by-item differences rather than random measurement error.
+
+
+##### Supplementary Text 2: Lexicon-Based Approach to Compute Abstractness vs. Concreteness
+
+### To further validate GPT-rated relative abstractness scores, we compared the scores with publically available concreteness ratings (as opposed to abstractness) collected by Brysbaert et al. (2014) on 40,000 English words. Brysbaert et al. (2014) recruited human participants to rate concreteness for each of the 40,000 English words on a Likert scale of 5 (1 - "abstract (language-based)" to 5 - "concrete (experience-based)"). We tokenized each of the written interpretations in both pilot and confirmatory data, and each word was converted to a corresponding Brysbaert et al. (2014) concreteness score if the word and its corresponding score were included in the list of 40,000 English words (NA if not included). We computed the mean concreteness score of each text response. Brysbaert et al. (2014) concreteness scores were used for validation purposes only. To be consistent with our pre-registration and the main focus of this project, we did not use the lexicon-based approach scores to test our main hypotheses.
+
+\newpage
+##### Supplementary Text 3: PCA Loadings
+
+### We computed PCA loadings using BDI-II, STAI-S short form, and STAI-T short form scores for the pilot and confirmatory datasets. Because PCA loadings vary with sample size and data-specific score distributions, we combined the two datasets to compute overall PCA loadings for the final analyses. To ensure our findings were not specific to these particular PCA loadings, we validated them using an external dataset (n = 440) from the same laboratory that had collected BDI-II, STAI-S short form, and STAI-T short form scores for a different study. We recomputed PCA loadings using this external dataset, applied the external loadings to estimate individual component scores in our dataset, and re-ran the primary analyses (Tables S8-14). 
+
+```{r VCA, echo=F, include=F, eval=F}
+vca_dat <- pilot_final 
+
+vca_dat_long <- vca_dat %>% pivot_longer(cols=c('relative_abstractness_gpt',
+                                                'relative_abstractness_human_mean'), 
+                                         names_to = c('rater'), 
+                                         values_to=("rating"))
+
+vca_dat_long$rater <- factor(vca_dat_long$rater)
+vca_dat_long %>% select(c('subj', 'prompt', 'rater', 'rating'))
+
+fit.SS3 <- fitVCA(rating~subj + prompt + subj:prompt + rater, data.frame(vca_dat_long))
+fit.SS3
+
+vc <- fit.SS3$aov.tab
+
+var_subj   <- vc["subj", "VC"]
+var_rater  <- vc["rater", "VC"]
+var_subjprompt <- vc["subj:prompt", "VC"]
+var_resid  <- vc["error", "VC"]
+
+# Single-rater ICC
+icc_single <- (var_subj + var_subjprompt) / (var_subj + var_subjprompt + var_resid + var_rater)
+icc_single
+```
+
+\newpage
+##### Figure S1
+
+#### Mean Word Count Increases as Scenarios Become Clearer in Both Pilot and Confirmatory Data
+
+```{r word count histogram, warning=F, fig.width=7, fig.height=4, echo=F, dpi=600}
+# Pilot 
+fig_s1a <- ggplot(pilot_final, aes(x = prompt_stage, y = word_counts, fill = prompt_stage)) + 
+  theme_pubr() + 
+  stat_summary(fun.y = "mean", geom = "col") + 
+  stat_summary(fun.data = mean_sdl, geom = "errorbar", width = .4, fun.args = list(mult = 1)) +
+  ylab('Mean Word Counts') + xlab('Scenario Stage') + theme(legend.position = "none") +
+  stat_compare_means(
+      method = "t.test",         
+      symnum.args = list(
+          cutpoints = c(0, 0.001, 0.01, 0.05, Inf),
+          symbols = c("***", "**", "*", "ns")),
+      comparisons = list(c("1", "2"),c("2", "3"),c("1", "3")),
+      label.y = c(18,25,30),
+      size = 8,
+    ) + ylim(c(0,40)) + ggtitle('Pilot')
+
+# Confirmatory 
+fig_s1b <- ggplot(confirm_final, aes(x = prompt_stage, y = word_counts, fill = prompt_stage)) + 
+  theme_pubr() + 
+  stat_summary(fun.y = "mean", geom = "col") + 
+  stat_summary(fun.data = mean_sdl, geom = "errorbar", width = .4, fun.args = list(mult = 1)) +
+  ylab('Mean Word Counts') + xlab('Scenario Stage') + theme(legend.position = "none") +
+  stat_compare_means(
+      method = "t.test",         
+      symnum.args = list(
+          cutpoints = c(0, 0.001, 0.01, 0.05, Inf),
+          symbols = c("***", "**", "*", "ns")),
+      comparisons = list(c("1", "2"),c("2", "3"),c("1", "3")),
+      label.y = c(18,25,30),
+      size = 8,
+    ) + ylim(c(0,40)) + ggtitle('Confirmatory')
+
+fig_s1 <- ggarrange(fig_s1a, fig_s1b, labels = c("A", "B")) 
+
+print(fig_s1)
+```
+*Note*. As pre-registered, mean word counts per scenario stage gradually increased in both (A) pilot and (B) confirmatory datasets (Stage 1 = 80% blur, Stage 2 = 20% blur, Stage 3 = 0% blur). When scenarios became clearer, participants wrote more words to describe what seemed to be happening. _\* p < .05, \** p < .01, \*** p < .001._
+
+\newpage
+##### Figure S2
+
+#### Mean Negativity Increases as Scenarios Become Clearer in Negative Scenarios and Decreases in Positive/Neutral Scenarios in Both Pilot and Confirmatory Data
+
+```{r neg histogram, warning=F, fig.width=7, fig.height=8, echo=F, dpi=600}
+# Pilot 
+fig_s2a <- ggplot(pilot_final, aes(x = prompt_stage, y = negativity_gpt, fill = prompt_stage)) + 
+  theme_pubr() + 
+  facet_wrap(~prompt_val,
+             labeller = labeller(prompt_val = c("N" = "Negative",
+                                                "P" = "Positive/Neutral"))) +
+  stat_summary(fun.y = "mean", geom = "col") + 
+  stat_summary(fun.data = mean_sdl, geom = "errorbar", width = .4, fun.args = list(mult = 1)) +
+  ylab('Mean GPT Negativity') + xlab('Scenario Stage') + theme(legend.position = "none") +
+  stat_compare_means(
+      method = "t.test",         
+      symnum.args = list(
+          cutpoints = c(0, 0.001, 0.01, 0.05, Inf),
+          symbols = c("***", "**", "*", "ns")),
+      comparisons = list(c("1", "2"),c("2", "3"),c("1", "3")),
+      label.y = c(7,9,11),
+      size = 8,
+    ) + ylim(c(-5,13)) + ggtitle('Pilot')
+
+# Confirmatory 
+fig_s2b <- ggplot(confirm_final, aes(x = prompt_stage, y = negativity_gpt, fill = prompt_stage)) + 
+  theme_pubr() + 
+  facet_wrap(~prompt_val,
+             labeller = labeller(prompt_val = c("N" = "Negative",
+                                                "P" = "Positive/Neutral"))) +  stat_summary(fun.y = "mean", geom = "col") + 
+  stat_summary(fun.data = mean_sdl, geom = "errorbar", width = .4, fun.args = list(mult = 1)) +
+  ylab('Mean GPT Negativity') + xlab('Scenario Stage') + theme(legend.position = "none") +
+  stat_compare_means(
+      method = "t.test",         
+      symnum.args = list(
+          cutpoints = c(0, 0.001, 0.01, 0.05, Inf),
+          symbols = c("***", "**", "*", "ns")),
+      comparisons = list(c("1", "2"),c("2", "3"),c("1", "3")),
+      label.y = c(7,9,11),
+      size = 8,
+    ) + ylim(c(-5,13)) + ggtitle('Confirmatory')
+
+fig_s2 <- ggarrange(fig_s2a, fig_s2b, nrow=2, ncol=1, labels = c("A", "B")) 
+
+print(fig_s2)
+
+```
+*Note.* As pre-registered, mean GPT-rated negativity per scenario stage gradually increased in a valence-congruent way in both (A) pilot and (B) confirmatory datasets (Stage 1 = 80% blur, Stage 2 = 20% blur, Stage 3 = 0% blur). For negative scenarios, mean GPT-rated negativity scores increased as the scenarios became clearer, whereas for positive/neutral scenarios, mean GPT-rated negativity scores decreased as the scenarios became clearer. _\* p < .05, \** p < .01, \*** p < .001._
+
+\newpage
+##### Figure S3
+
+#### Mean Relative Abstractness Increases as Scenarios Become Clearer in Both Pilot and Confirmatory Data
+
+```{r rel abs histogram, warning=F, fig.width=7, fig.height=4, echo=F, dpi=600}
+# Pilot 
+fig_s3a <- ggplot(pilot_final, aes(x = prompt_stage, y = relative_abstractness_gpt, 
+                                   fill = prompt_stage)) + 
+  theme_pubr() + 
+  # facet_wrap(~prompt_val,
+  #            labeller = labeller(prompt_val = c("N" = "Negative",
+  #                                               "P" = "Positive/Neutral"))) +
+  stat_summary(fun.y = "mean", geom = "col") + 
+  stat_summary(fun.data = mean_sdl, geom = "errorbar", width = .4, fun.args = list(mult = 1)) +
+  ylab('Mean GPT Relative Abstractness') + xlab('Scenario Stage') + theme(legend.position = "none") +
+  stat_compare_means(
+      method = "t.test",         
+      symnum.args = list(
+          cutpoints = c(0, 0.001, 0.01, 0.05, Inf),
+          symbols = c("***", "**", "*", "ns")),
+      comparisons = list(c("1", "2"),c("2", "3"),c("1", "3")),
+      label.y = c(1,1.5,2),
+      size = 8,
+    ) + ylim(c(0,2.5)) + ggtitle('Pilot')
+
+# Confirmatory 
+fig_s3b <- ggplot(confirm_final, aes(x = prompt_stage, y = relative_abstractness_gpt, 
+                                     fill = prompt_stage)) + 
+  theme_pubr() + 
+  # facet_wrap(~prompt_val,
+  #            labeller = labeller(prompt_val = c("N" = "Negative",
+  #                                               "P" = "Positive/Neutral"))) +  
+  stat_summary(fun.y = "mean", geom = "col") + 
+  stat_summary(fun.data = mean_sdl, geom = "errorbar", width = .4, fun.args = list(mult = 1)) +
+  ylab('Mean GPT Relative Abstractness') + xlab('Scenario Stage') + theme(legend.position = "none") +
+  stat_compare_means(
+      method = "t.test",         
+      symnum.args = list(
+          cutpoints = c(0, 0.001, 0.01, 0.05, Inf),
+          symbols = c("***", "**", "*", "ns")),
+      comparisons = list(c("1", "2"),c("2", "3"),c("1", "3")),
+      label.y = c(1,1.5,2),
+      size = 8,
+    ) + ylim(c(0,2.5)) + ggtitle('Confirmatory')
+
+fig_s3 <- ggarrange(fig_s3a, fig_s3b, nrow=1, ncol=2, labels = c("A", "B")) 
+
+print(fig_s3)
+```
+*Note*. Mean GPT-rated relative abstractness score per scenario stage significantly increased in both (A) pilot and (B) confirmatory datasets (Stage 1 = 80% blur, Stage 2 = 20% blur, Stage 3 = 0% blur). _\* p < .05, \** p < .01, \*** p < .001._
+
+\newpage
+##### Figure S4 
+
+#### Mean Human-Rated Negativity and Realtive Abstractness Increase as Scenarios Become Clearer (Pilot Data Only)
+
+```{r human histograms, warning=F, fig.width=7, fig.height=8, echo=F, dpi=600}
+# Pilot 
+fig_s4a <- ggplot(pilot_final, aes(x = prompt_stage, y = negativity_human_mean, 
+                                   fill = prompt_stage)) + 
+  theme_pubr() + 
+  facet_wrap(~prompt_val,
+             labeller = labeller(prompt_val = c("N" = "Negative",
+                                                "P" = "Positive/Neutral"))) +
+  stat_summary(fun.y = "mean", geom = "col") + 
+  stat_summary(fun.data = mean_sdl, geom = "errorbar", width = .4, fun.args = list(mult = 1)) +
+  ylab('Mean Human Negativity') + xlab('Scenario Stage') + theme(legend.position = "none") +
+  stat_compare_means(
+      method = "t.test",         
+      symnum.args = list(
+          cutpoints = c(0, 0.001, 0.01, 0.05, Inf),
+          symbols = c("***", "**", "*", "ns")),
+      comparisons = list(c("1", "2"),c("2", "3"),c("1", "3")),
+      label.y = c(6,7.5,9),
+      size = 6,
+    ) + ylim(c(-2,11)) 
+
+# Confirmatory 
+fig_s4b <- ggplot(pilot_final, aes(x = prompt_stage, y = relative_abstractness_human_mean, 
+                                     fill = prompt_stage)) + 
+  theme_pubr() + 
+  # facet_wrap(~prompt_val,
+  #            labeller = labeller(prompt_val = c("N" = "Negative",
+  #                                               "P" = "Positive/Neutral"))) +  
+  stat_summary(fun.y = "mean", geom = "col") + 
+  stat_summary(fun.data = mean_sdl, geom = "errorbar", width = .4, fun.args = list(mult = 1)) +
+  ylab('Mean Human Relative Abstractness') + xlab('Scenario Stage') + theme(legend.position = "none") +
+  stat_compare_means(
+      method = "t.test",         
+      symnum.args = list(
+          cutpoints = c(0, 0.001, 0.01, 0.05, Inf),
+          symbols = c("***", "**", "*", "ns")),
+      comparisons = list(c("1", "2"),c("2", "3"),c("1", "3")),
+      label.y = c(0.8,1,1.2),
+      size = 8,
+    ) + ylim(c(0,1.5))
+
+fig_s4 <- ggarrange(fig_s4a, fig_s4b, nrow=2, ncol=1, labels = c("A", "B")) 
+
+print(fig_s4)
+```
+*Note*. Mean human-rated negativity (A) and relative abstractness (B) scores per scenario stage significantly increased in pilot data as blur decreased (Stage 1 = 80% blur, Stage 2 = 20% blur, Stage 3 = 0% blur). (A) Mean human-rated negativity ratings increased as scenarios became clearer in a valence-congruent way, replicating GPT-rated negativity patterns. (B) Mean human-rated relative abstractness increased as scenarios revealed more detail. _\* p < .05, \** p < .01, \*** p < .001._
+
+\newpage
+##### Figure S5
+
+#### Mean Negativity and Relative Abstractness Vary by Scenario Item 
+
+```{r neg and abs by prompt, warning=F, fig.width=7, fig.height=8, echo=F, dpi=600}
+all_data <- all_data %>%
+  mutate(
+    prompt_val_set = factor(
+      prompt_val_set, levels = c(paste0("N", 1:12), paste0("P", 1:12))),
+    data_type = factor(
+      data_type, levels = c(1,0)))
+
+fig_s5a <- ggplot(all_data, aes(x = prompt_val_set, y = negativity_gpt, fill=data_type)) +
+  facet_wrap(~data_type,
+             labeller = labeller(data_type = c("0" = "Confimatory",
+                                               "1" = "Pilot"))) + 
+  stat_summary(
+    fun = mean, 
+    geom = "bar", 
+    linewidth = 0.5,
+  ) +
+  stat_summary(
+    fun.data = mean_sdl, 
+    fun.args = list(mult = 1),  # 1 SD
+    geom = "errorbar", 
+    width = 0.3, 
+    color = "black"
+  ) +
+  theme_pubr() +
+  labs(
+    x = "Scenario",
+    y = "Mean GPT Negativity",
+    title = "GPT Negativity by Scenario Item"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=7)) 
+  
+fig_s5b <- ggplot(all_data, aes(x = prompt_val_set, y = relative_abstractness_gpt, fill=data_type)) +
+ facet_wrap(~data_type,
+             labeller = labeller(data_type = c("0" = "Confimatory",
+                                               "1" = "Pilot"))) +   
+  stat_summary(
+    fun = mean, 
+    geom = "bar", 
+    linewidth = 0.5,
+  ) +
+  stat_summary(
+    fun.data = mean_sdl, 
+    fun.args = list(mult = 1),  # 1 SD
+    geom = "errorbar", 
+    width = 0.3, 
+    color = "black"
+  ) +
+  theme_pubr() +
+  labs(
+    x = "Scenario",
+    y = "Mean GPT Relative Abstractness",
+    title = "GPT Relative Abstractness by Scenario Item"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=7)) 
+
+fig_s5 <- ggarrange(fig_s5a, fig_s5b, nrow=2, ncol=1, labels = c("A", "B"))
+
+print(fig_s5)
+
+# ANOVA
+# neg_anova_result <- aov(negativity_gpt ~ prompt_val_set, data = all_data)
+# summary(neg_anova_result)
+# 
+# rel_abs_anova_result <- aov(relative_abstractness_gpt ~ prompt_val_set, data = all_data)
+# summary(rel_abs_anova_result)
+
+```
+*Note*. Mean negativity (A) and relative abstractness (B) scores varied significantly based on scenario item in both pilot and confirmatory data. Each bar represents the mean score for a scenario item, averaged across its three stages. 
+
+\newpage
+##### Figure S6
+
+#### Trait Internalizing Symptoms Related to Greater Negativity for Negative and Clearer Scenarios
+
+```{r neg bias val*stage moderation reg (post-hoc), warning=F, message=F, echo=F, fig.width=7, fig.height=3.5, echo=F, dpi=600}
+# No Demographic Confoundings
+model_neg_val_stage_moderate_simple <- lmer(
+  negativity_gpt ~  PC2_score*prompt_val*prompt_stage + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final %>% mutate(prompt_stage = factor(prompt_stage, levels = c("1", "2", "3"),
+                                                        labels = c("Stage 1", "Stage 2", "Stage 3"))))
+
+model_neg_predict_mod  <- ggeffects::ggpredict(model_neg_val_stage_moderate_simple, c("PC2_score", "prompt_val", "prompt_stage"))
+
+figs6 <- plot(model_neg_predict_mod) + 
+  xlab('Trait Internalizing Symptoms') + 
+  ylab('GPT Negativity') +
+  scale_colour_brewer(palette = "Set1", 
+                      labels = c("Negative", "Positive/Neutral")) + 
+  scale_fill_brewer(palette = "Set1") +
+  theme_classic() + 
+  theme(legend.justification = c("right", "bottom"),
+        text = element_text(size=13)) + 
+  ggtitle("") + labs(colour = "Valence") +
+  theme(plot.margin = margin(t = 10, r = 5, b = 5, l = 5))
+
+print(figs6)
+
+```
+*Note*. Trait internalizing symptoms were associated with GPT-rated negativity scores, with effects moderated by scenario valence and stage (blur level). The association between symptoms and negativity ratings was stronger for negative scenarios than positive/neutral scenarios, and this valence effect was more pronounced at clearer stages (Stages 2 and 3) compared the most ambiguous stage (Stage 1). _\* p < .05, \** p < .01, \*** p < .001._
+
+\newpage
+##### Figure S7
+
+#### Higher Trait Internalizing Symptoms (Using External PCA Loadings) Associated with Greater Increases in Relative Abstractness
+
+```{r figure S7, warning=F, message=F, echo=F, fig.width=8.5, fig.height=4.5, echo=F, dpi=600}
+
+confirm_final <- confirm_final %>%
+  arrange(subj, prompt_val_set, prompt_stage) %>%                  
+  group_by(subj, prompt_val_set) %>%                               
+  mutate(relative_abstract_diff = relative_abstractness_gpt - dplyr::lag(relative_abstractness_gpt),
+         negativity_diff = negativity_gpt - dplyr::lag(negativity_gpt),
+         word_counts_diff = word_counts - dplyr::lag(word_counts)) %>%
+  ungroup()
+
+tmp_data <- confirm_final %>% filter(prompt_stage != "a") %>% 
+  group_by(subj) %>% 
+  summarise(mean_relative_abstract_diff = mean(relative_abstract_diff, na.rm=T),
+            mean_negativity_diff = mean(negativity_diff, na.rm=T),
+            mean_word_counts_diff = mean(word_counts_diff, na.rm=T),
+            age = unique(age),
+            gender = unique(gender),
+            edu = unique(edu),
+         PC2_score = unique(PC2_score_external),
+         PC1_score = unique(PC1_score_external),
+         PC3_score = unique(PC3_score_external))
+
+tmp_data <- tmp_data %>%
+  mutate(PC2_group = ifelse(PC2_score >= median(tmp_data$PC2_score, na.rm = TRUE),
+                            "High", "Low"))
+
+p <- ggplot(tmp_data, aes(x = PC2_group, y = mean_relative_abstract_diff, fill = PC2_group)) +
+  geom_boxplot(alpha = 0.7, width = 0.6, outlier.shape = NA) +
+  geom_jitter(width = 0.15, alpha = 0.6, size = 2) +
+  ylim(c(-0.05, 0.2)) +
+  labs(
+    x = "Trait Internalizing Symptoms Group \n(External PCA Loadings)",
+    y = "GPT Mean Relative Abstractness Change",
+    title = ""
+  ) +
+  theme_bw(base_size = 14) +
+  theme(legend.position = "none")
+
+figs7a <- p + stat_compare_means(
+      method = "t.test",         
+      symnum.args = list(
+          cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, Inf),
+          symbols = c("****", "***", "**", "*", "ns")
+        ),
+      comparisons = list(c("Low", "High")),
+      label.y = 0.175,
+      size = 8
+    )
+
+model_abs_change_simple <- lm(
+  mean_relative_abstract_diff ~ PC2_score, 
+  data = tmp_data
+)
+
+model_abstract_change_main <- ggeffects::ggpredict(model_abs_change_simple, c("PC2_score"))
+
+figs7b <- plot(model_abstract_change_main) + xlab('Trait Internalizing Symptoms \n(External PCA Loadings)') + 
+  ylab('GPT Mean Relative Abstractness Change') +
+  scale_colour_brewer(palette = "Set1",
+                      labels = c("1", "2", "3")) +  
+  scale_fill_brewer(palette = "Set1") +
+  theme_classic() + theme(legend.position = "top",
+                          text=element_text(size=14)) + 
+  ggtitle("") + 
+  theme(plot.margin = margin(t = 10, r = 5, b = 5, l = 5))
+
+figs7 <- ggarrange(figs7a, figs7b, ncol=2, nrow =1, labels=c("A", "B"))
+print(figs7)
+
+model_abs_change_full_external <- lm(
+  mean_relative_abstract_diff ~ PC2_score + age + edu + gender + mean_negativity_diff + mean_word_counts_diff,
+  data = tmp_data
+)
+
+# tbl_regression(model_abs_change_full_external, 
+#                estimate_fun = ~style_sigfig(.x, digits = 4),
+#                pvalue_fun = label_style_pvalue(digits = 3))
+
+```
+*Note*. Using external PCA loadings, we replicated the findings reported in Figure 3. (A) The high trait internalizing group (median split for visualization) showed a significantly greater increase in mean GPT-rated relative abstractness than the low trait internalizing group. The height of each box represents the 25th and 75th percentiles of the data, and the middle line within each box represents the median for each group. (B) Higher trait internalizing symptoms were associated with greater increases in mean GPT-rated relative abstractness in a linear regression analysis. Shaded areas represent 95% confidence intervals around predicted values. p values indicated are from the corresponding analyses. _\* p < .05; \** p < .01; \*** p < .001._
+
+\newpage
+##### Table S1
+
+#### Full Regression Results for Trait Internalizing Symptoms Predicting Negativity
+```{r table s1, warning=F, message=F, echo=F}
+# Relabelling for plot labels
+confirm_final$prompt_val = factor(confirm_final$prompt_val, 
+                                  levels = c("N", "P"),
+                                  labels = c(" (Negative)", " (Positive/Neutral)"))
+
+confirm_final$prompt_stage = factor(confirm_final$prompt_stage, 
+                                  levels = c("1", "2", "3"),
+                                  labels = c(" 1", " 2", " 3"))
+
+confirm_final <- confirm_final %>% mutate(
+  `Activated Distress Score` = .$PC1_score,
+  `Trait Internalizing Score` = .$PC2_score,
+  `Non-Depressive Anxiety Score` = .$PC3_score,  
+  `Scenario Stage` = .$prompt_stage,
+  `Scenario Valence` = .$prompt_val,
+  `Word Counts` = .$word_counts,
+  `GPT Negativity` = .$negativity_gpt,
+  Age = .$age,
+  Gender = .$gender,
+  Education = .$edu,
+  `GPT Relative Abstractness` = .$relative_abstractness_gpt
+)
+
+model_neg_full <- lmer(
+  negativity_gpt ~ `Trait Internalizing Score` + 
+                    `Word Counts` + `Age` + `Gender` + `Education` + `GPT Relative Abstractness` + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+apa_table(apa_print(model_neg_full)$table,
+          escape = FALSE)
+```
+
+\newpage
+##### Table S2
+
+#### Full Regression Results for Trait Internalizing Symptoms Predicting Negativity with Valence Moderation Term
+```{r table s2, warning=F, message=F, echo=F}
+model_neg_val_moderate_full <- lmer(
+  negativity_gpt ~  `Trait Internalizing Score`*`Scenario Valence` + 
+                    `Word Counts` + Age + Gender + Education + 
+                     `GPT Relative Abstractness` + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+apa_table(apa_print(model_neg_val_moderate_full)$table,
+          escape = F)
+```
+
+\newpage
+##### Table S3
+
+#### Full Regression Results for Trait Internalizing Symptoms Predicting Negativity with Stage Moderation Term
+```{r table s3, warning=F, message=F, echo=F}
+model_neg_stage_moderate_full <- lmer(
+  negativity_gpt ~  `Trait Internalizing Score`*`Scenario Stage` + 
+                    `Word Counts` + Age + Gender + Education + 
+                     `GPT Relative Abstractness` + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+apa_table(apa_print(model_neg_stage_moderate_full)$table,
+          escape = F)
+```
+
+\newpage
+##### Table S4
+
+#### Full Regression Results for Trait Internalizing Symptoms Predicting Negativity with Valence and Stage Moderation Terms
+```{r table s4, warning=F, message=F, echo=F}
+model_neg_val_stage_moderate_full <- lmer(
+  negativity_gpt ~  `Trait Internalizing Score`*`Scenario Valence`*`Scenario Stage` + 
+                    `Word Counts` + Age + Gender + Education + 
+                     `GPT Relative Abstractness` + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+apa_table(apa_print(model_neg_val_stage_moderate_full)$table,
+          escape = F)
+```
+
+<!-- \newpage -->
+<!-- ##### Table S5 -->
+
+<!-- #### Regression Results for Other Symptoms Predicting Negativity with Valence Moderation Term -->
+<!-- ```{r table s5, warning=F, message=F, echo=F} -->
+<!-- model_neg_val_moderate_pc1 <- lmer( -->
+<!--   negativity_gpt ~  `Activated Distress Score`*`Scenario Valence` +  -->
+<!--                     #`Word Counts` + Age + Gender + Education +  -->
+<!--                     # `GPT Relative Abstractness` +  -->
+<!--   (1 | prolific_id) + (1 | prompt_val_set), -->
+<!--   data = confirm_final -->
+<!-- ) -->
+
+<!-- model_neg_val_moderate_pc2 <- lmer( -->
+<!--   negativity_gpt ~  `Non-Depressive Anxiety Score`*`Scenario Valence` +  -->
+<!--   (1 | prolific_id) + (1 | prompt_val_set), -->
+<!--   data = confirm_final -->
+<!-- ) -->
+
+<!-- apa_table(cbind(apa_print(model_neg_val_moderate_pc1)$table, -->
+<!--                 apa_print(model_neg_val_moderate_pc2)$table), -->
+<!--           escape = F) -->
+<!-- ``` -->
+
+<!-- \newpage -->
+<!-- ##### Table S6 -->
+
+#### Regression Results for Other Symptoms Predicting Negativity with Stage Moderation Term
+```{r table , warning=F, message=F, echo=F, eval=F}
+model_neg_stage_moderate_pc1 <- lmer(
+  negativity_gpt ~  `Activated Distress Score`*`Scenario Stage` +
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+model_neg_stage_moderate_pc2 <- lmer(
+  negativity_gpt ~  `Non-Depressive Anxiety Score`*`Scenario Stage` +
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+apa_table(cbind(apa_print(model_neg_stage_moderate_pc1)$table,
+                apa_print(model_neg_stage_moderate_pc2)$table),
+          escape = F)
+```
+
+<!-- \newpage -->
+<!-- ##### Table S7 -->
+
+<!-- #### Full Regression Results for Other Symptoms Predicting Negativity with Valence Moderation Term -->
+<!-- ```{r table s7, warning=F, message=F, echo=F} -->
+<!-- model_neg_val_moderate_full_pc1 <- lmer( -->
+<!--   negativity_gpt ~  `Activated Distress Score`*`Scenario Valence` +  -->
+<!--                     `Word Counts` + Age + Gender + Education +  -->
+<!--                      `GPT Relative Abstractness` +  -->
+<!--   (1 | prolific_id) + (1 | prompt_val_set), -->
+<!--   data = confirm_final -->
+<!-- ) -->
+
+<!-- model_neg_val_moderate_full_pc2 <- lmer( -->
+<!--   negativity_gpt ~  `Non-Depressive Anxiety Score`*`Scenario Valence` +  -->
+<!--                     `Word Counts` + Age + Gender + Education +  -->
+<!--                      `GPT Relative Abstractness` +  -->
+<!--   (1 | prolific_id) + (1 | prompt_val_set), -->
+<!--   data = confirm_final -->
+<!-- ) -->
+
+<!-- apa_table(cbind(apa_print(model_neg_val_moderate_full_pc1)$table, -->
+<!--                 apa_print(model_neg_val_moderate_full_pc2)$table), -->
+<!--           escape = F) -->
+<!-- ``` -->
+
+<!-- \newpage -->
+<!-- ##### Table S8 -->
+
+<!-- #### Full Regression Results for Other Symptoms Predicting Negativity with Stage Moderation Term -->
+<!-- ```{r table s8, warning=F, message=F, echo=F} -->
+<!-- model_neg_stage_moderate_full_pc1 <- lmer( -->
+<!--   negativity_gpt ~  `Activated Distress Score`*`Scenario Stage` +  -->
+<!--                     `Word Counts` + Age + Gender + Education +  -->
+<!--                     `GPT Relative Abstractness` +  -->
+<!--   (1 | prolific_id) + (1 | prompt_val_set), -->
+<!--   data = confirm_final -->
+<!-- ) -->
+
+<!-- model_neg_stage_moderate_full_pc2 <- lmer( -->
+<!--   negativity_gpt ~  `Non-Depressive Anxiety Score`*`Scenario Stage` +  -->
+<!--                     `Word Counts` + Age + Gender + Education +  -->
+<!--                     `GPT Relative Abstractness` +  -->
+<!--   (1 | prolific_id) + (1 | prompt_val_set), -->
+<!--   data = confirm_final -->
+<!-- ) -->
+
+<!-- apa_table(cbind(apa_print(model_neg_stage_moderate_full_pc1)$table, -->
+<!--                 apa_print(model_neg_stage_moderate_full_pc2)$table), -->
+<!--           escape = F) -->
+<!-- ``` -->
+
+
+\newpage
+##### Table S5
+
+#### Full Regression Results for Trait Internalizing Symptoms Predicting Relative Abstractness
+```{r table s5, warning=F, message=F, echo=F}
+model_abs_full <- lmer(
+  relative_abstractness_gpt ~ `Trait Internalizing Score` + 
+                    `Word Counts` + `Age` + `Gender` + `Education` + `GPT Negativity` + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+apa_table(apa_print(model_abs_full)$table,
+          escape = F)
+```
+
+\newpage
+##### Table S6
+
+#### Full Regression Results for Trait Internalizing Symptoms Predicting Relative Abstractness with Valence Moderation Term
+```{r table s6, warning=F, message=F, echo=F}
+model_abs_val_moderate_full <- lmer(
+  relative_abstractness_gpt ~ `Trait Internalizing Score`*`Scenario Valence` + 
+                    `Word Counts` + `Age` + `Gender` + `Education` + `GPT Negativity` + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+apa_table(apa_print(model_abs_val_moderate_full)$table,
+          escape = F)
+```
+
+\newpage
+##### Table S7
+
+#### Full Regression Results for Trait Internalizing Symptoms Predicting Relative Abstractness with Stage Moderation Term
+```{r table s7, warning=F, message=F, echo=F}
+model_abs_stage_moderate_full <- lmer(
+  relative_abstractness_gpt ~ `Trait Internalizing Score`*`Scenario Stage` + 
+                    `Word Counts` + `Age` + `Gender` + `Education` + `GPT Negativity` + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+apa_table(apa_print(model_abs_stage_moderate_full)$table,
+          escape = F)
+```
+
+\newpage
+##### Table S8
+#### External PCA Loadings Replicate Full Regression Results for Trait Internalizing Symptoms Predicting Negativity
+```{r table s8, warning=F, message=F, echo=F}
+# Relabelling for plot labels
+confirm_final <- confirm_final %>% mutate(
+  `Activated Distress Score` = .$PC1_score,
+  `Trait Internalizing Score` = .$PC2_score,
+  `Non-Depressive Anxiety Score` = .$PC3_score,  
+  `External Activated Distress Score` = .$PC1_score_external,
+  `External Trait Internalizing Score` = .$PC2_score_external,
+  `External Non-Depressive Anxiety Score` = .$PC3_score_external,    
+  `Scenario Stage` = .$prompt_stage,
+  `Scenario Valence` = .$prompt_val,
+  `Word Counts` = .$word_counts,
+  `GPT Negativity` = .$negativity_gpt,
+  Age = .$age,
+  Gender = .$gender,
+  Education = .$edu,
+  `GPT Relative Abstractness` = .$relative_abstractness_gpt
+)
+
+model_neg_full <- lmer(
+  negativity_gpt ~ `External Trait Internalizing Score` + 
+                    `Word Counts` + `Age` + `Gender` + `Education` + `GPT Relative Abstractness` + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+apa_table(apa_print(model_neg_full)$table,
+          escape = F)
+```
+
+##### Table S9
+
+#### External PCA Loadings Replicate Full Regression Results for Trait Internalizing Symptoms Predicting Negativity with Valence Moderation Term
+```{r table s9, warning=F, message=F, echo=F}
+model_neg_val_moderate_full <- lmer(
+  negativity_gpt ~  `External Trait Internalizing Score`*`Scenario Valence` + 
+                    `Word Counts` + Age + Gender + Education + 
+                     `GPT Relative Abstractness` + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+apa_table(apa_print(model_neg_val_moderate_full)$table,
+          escape = F)
+```
+
+\newpage
+##### Table S10
+
+#### External PCA Loadings Replicate Full Regression Results for Trait Internalizing Symptoms Predicting Negativity with Stage Moderation Term
+```{r table s10, warning=F, message=F, echo=F}
+model_neg_stage_moderate_full <- lmer(
+  negativity_gpt ~  `External Trait Internalizing Score`*`Scenario Stage` + 
+                    `Word Counts` + Age + Gender + Education + 
+                     `GPT Relative Abstractness` + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+apa_table(apa_print(model_neg_stage_moderate_full)$table,
+          escape = F)
+```
+
+\newpage
+##### Table S11
+
+#### External PCA Loadings Replicate Full Regression Results for Trait Internalizing Symptoms Predicting Negativity with Valence and Stage Moderation Terms
+```{r table s11, warning=F, message=F, echo=F}
+model_neg_val_stage_moderate_full <- lmer(
+  negativity_gpt ~  `External Trait Internalizing Score`*`Scenario Valence`*`Scenario Stage` + 
+                    `Word Counts` + Age + Gender + Education + 
+                     `GPT Relative Abstractness` + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+apa_table(apa_print(model_neg_val_stage_moderate_full)$table,
+          escape = F)
+```
+
+<!-- \newpage -->
+<!-- ##### Table S16 -->
+
+<!-- #### External PCA Loadings Replicate Regression Results for Other Symptoms Predicting Negativity with Valence Moderation Term -->
+<!-- ```{r table s16, warning=F, message=F, echo=F} -->
+<!-- model_neg_val_moderate_pc1 <- lmer( -->
+<!--   negativity_gpt ~  `External Activated Distress Score`*`Scenario Valence` +  -->
+<!--   (1 | prolific_id) + (1 | prompt_val_set), -->
+<!--   data = confirm_final -->
+<!-- ) -->
+
+<!-- model_neg_val_moderate_pc2 <- lmer( -->
+<!--   negativity_gpt ~  `External Non-Depressive Anxiety Score`*`Scenario Valence` +  -->
+<!--   (1 | prolific_id) + (1 | prompt_val_set), -->
+<!--   data = confirm_final -->
+<!-- ) -->
+
+<!-- apa_table(cbind(apa_print(model_neg_val_moderate_pc1)$table, -->
+<!--                 apa_print(model_neg_val_moderate_pc2)$table), -->
+<!--           escape = F) -->
+<!-- ``` -->
+
+<!-- \newpage -->
+<!-- ##### Table S17 -->
+
+<!-- #### External PCA Loadings Replicate Regression Results for Other Symptoms Predicting Negativity with Stage Moderation Term -->
+<!-- ```{r table s17, warning=F, message=F, echo=F} -->
+<!-- model_neg_stage_moderate_pc1 <- lmer( -->
+<!--   negativity_gpt ~  `External Activated Distress Score`*`Scenario Stage` +  -->
+<!--   (1 | prolific_id) + (1 | prompt_val_set), -->
+<!--   data = confirm_final -->
+<!-- ) -->
+
+<!-- model_neg_stage_moderate_pc2 <- lmer( -->
+<!--   negativity_gpt ~  `External Non-Depressive Anxiety Score`*`Scenario Stage` +  -->
+<!--   (1 | prolific_id) + (1 | prompt_val_set), -->
+<!--   data = confirm_final -->
+<!-- ) -->
+
+<!-- apa_table(cbind(apa_print(model_neg_stage_moderate_pc1)$table, -->
+<!--                 apa_print(model_neg_stage_moderate_pc2)$table), -->
+<!--           escape = F) -->
+<!-- ``` -->
+
+<!-- \newpage -->
+<!-- ##### Table S18 -->
+
+<!-- #### External PCA Loadings Replicate Full Regression Results for Other Symptoms Predicting Negativity with Valence Moderation Term -->
+<!-- ```{r table s18, warning=F, message=F, echo=F} -->
+<!-- model_neg_val_moderate_full_pc1 <- lmer( -->
+<!--   negativity_gpt ~  `External Activated Distress Score`*`Scenario Valence` +  -->
+<!--                     `Word Counts` + Age + Gender + Education +  -->
+<!--                      `GPT Relative Abstractness` +  -->
+<!--   (1 | prolific_id) + (1 | prompt_val_set), -->
+<!--   data = confirm_final -->
+<!-- ) -->
+
+<!-- model_neg_val_moderate_full_pc2 <- lmer( -->
+<!--   negativity_gpt ~  `External Non-Depressive Anxiety Score`*`Scenario Valence` +  -->
+<!--                     `Word Counts` + Age + Gender + Education +  -->
+<!--                      `GPT Relative Abstractness` +  -->
+<!--   (1 | prolific_id) + (1 | prompt_val_set), -->
+<!--   data = confirm_final -->
+<!-- ) -->
+
+<!-- apa_table(cbind(apa_print(model_neg_val_moderate_full_pc1)$table, -->
+<!--                 apa_print(model_neg_val_moderate_full_pc2)$table), -->
+<!--           col_spanners = list(`Activated Distress` = c(2, 5), `Non-Depressive Anxiety` = c(6, 9))) -->
+<!-- ``` -->
+
+<!-- \newpage -->
+<!-- ##### Table S19 -->
+
+<!-- #### External PCA Loadings Replicate Full Regression Results for Other Symptoms Predicting Negativity with Stage Moderation Term -->
+<!-- ```{r table s19, warning=F, message=F, echo=F} -->
+<!-- model_neg_stage_moderate_full_pc1 <- lmer( -->
+<!--   negativity_gpt ~  `External Activated Distress Score`*`Scenario Stage` +  -->
+<!--                     `Word Counts` + Age + Gender + Education +  -->
+<!--                     `GPT Relative Abstractness` +  -->
+<!--   (1 | prolific_id) + (1 | prompt_val_set), -->
+<!--   data = confirm_final -->
+<!-- ) -->
+
+<!-- model_neg_stage_moderate_full_pc2 <- lmer( -->
+<!--   negativity_gpt ~  `External Non-Depressive Anxiety Score`*`Scenario Stage` +  -->
+<!--                     `Word Counts` + Age + Gender + Education +  -->
+<!--                     `GPT Relative Abstractness` +  -->
+<!--   (1 | prolific_id) + (1 | prompt_val_set), -->
+<!--   data = confirm_final -->
+<!-- ) -->
+
+<!-- apa_table(cbind(apa_print(model_neg_stage_moderate_full_pc1)$table, -->
+<!--                 apa_print(model_neg_stage_moderate_full_pc2)$table), -->
+<!--           escape = F) -->
+<!-- ``` -->
+
+
+\newpage
+##### Table S12
+
+#### External PCA Loadings Replicate Full Regression Results for Trait Internalizing Symptoms Predicting Relative Abstractness
+```{r table s12, warning=F, message=F, echo=F}
+model_abs_full <- lmer(
+  relative_abstractness_gpt ~ `External Trait Internalizing Score` + 
+                    `Word Counts` + `Age` + `Gender` + `Education` + `GPT Negativity` + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+apa_table(apa_print(model_abs_full)$table,
+          escape = F)
+```
+
+\newpage
+##### Table S13
+
+#### External PCA Loadings Replicate Full Regression Results for Trait Internalizing Symptoms Predicting Relative Abstractness with Valence Moderation Term
+```{r table s13, warning=F, message=F, echo=F}
+model_abs_val_moderate_full <- lmer(
+  relative_abstractness_gpt ~ `External Trait Internalizing Score`*`Scenario Valence` + 
+                    `Word Counts` + `Age` + `Gender` + `Education` + `GPT Negativity` + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+apa_table(apa_print(model_abs_val_moderate_full)$table
+          , escape = FALSE)
+```
+
+\newpage
+##### Table S14
+
+#### External PCA Loadings Replicate Full Regression Results for Trait Internalizing Symptoms Predicting Relative Abstractness with Stage Moderation Term
+```{r table s14, warning=F, message=F, echo=F}
+model_abs_stage_moderate_full <- lmer(
+  relative_abstractness_gpt ~ `External Trait Internalizing Score`*`Scenario Stage` + 
+                    `Word Counts` + `Age` + `Gender` + `Education` + `GPT Negativity` + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+test <- apa_print(model_abs_stage_moderate_full)$table
+apa_table(test,
+          escape = FALSE)
+```
+
+
+<!-- \newpage -->
+<!-- ##### Method Statistics. -->
+
+<!-- #### Negativity Correlation (GPT ~ Average Human) -->
+<!-- ```{r neg corr, eval=T, echo=F} -->
+<!-- cor_apa(cor.test(pilot_final$negativity_human_mean, pilot_final$negativity_gpt, method="pearson")) -->
+<!-- cor_apa(cor.test(pilot_final$negativity_human_mean, pilot_final$negativity_gpt, method="spearman")) -->
+<!-- ``` -->
+
+<!-- #### Relative Abstract Correlation (GPT ~ Word-By-Word) -->
+<!-- ```{r rel abs corr, eval=T, echo=F} -->
+<!-- cor.test(pilot_final$brysbaert_mean, pilot_final$relative_abstractness_gpt, method="pearson") -->
+<!-- cor.test(pilot_final$brysbaert_mean, pilot_final$relative_abstractness_gpt, method="spearman") -->
+
+<!-- cor.test(confirm_final$brysbaert_mean, confirm_final$relative_abstractness_gpt, method="pearson") -->
+<!-- cor.test(confirm_final$brysbaert_mean, confirm_final$relative_abstractness_gpt, method="spearman") -->
+<!-- ``` -->
+
+<!-- #### Relative Abstract Correlation (GPT ~ Average Human) -->
+<!-- ```{r rel abs corr 2, eval=T, echo=F} -->
+<!-- cor.test(pilot_final$relative_abstractness_human_mean, pilot_final$relative_abstractness_gpt, method="pearson") -->
+<!-- cor.test(pilot_final$relative_abstractness_human_mean, pilot_final$relative_abstractness_gpt, method="spearman") -->
+<!-- ``` -->

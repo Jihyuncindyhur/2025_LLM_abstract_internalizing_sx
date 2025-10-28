@@ -65,6 +65,9 @@ all_data <- bind_rows(pilot_data, confirm_data)
 ```{r data exclusion}
 pilot_final  <- pilot_data %>% filter(excluded_subj == 0)
 confirm_final <- confirm_data %>% filter(excluded_subj == 0)
+
+pilot_final$prompt_stage <- factor(pilot_final$prompt_stage, levels = c("a", "b", "c"), labels = c("1", "2", "3"))
+confirm_final$prompt_stage <- factor(confirm_final$prompt_stage, levels = c("a", "b", "c"), labels = c("1", "2", "3"))
 ```
 
 ## Negativity Bias
@@ -414,11 +417,11 @@ print(fig2)
 
 # -----------
 # Save Figure
-# ggsave(fig2,
-#   filename=file.path(fig_dir, 'fig2.jpg'),
-#   dpi=600,
-#   width=5.5,
-#   height=4)
+ggsave(fig2,
+  filename=file.path(fig_dir, 'fig2.jpg'),
+  dpi=600,
+  width=5.5,
+  height=4)
 # -----------
 ```
 
