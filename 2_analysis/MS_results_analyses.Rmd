@@ -253,7 +253,7 @@ tbl_regression(model_neg_val_stage_moderate_simple,
                             'prompt_stage' = 'Scenario Stage'))
 ```
 
-### Others Negativity
+### Negativity Main (Others)
 ```{r neg other PCA scores}
 cor.test(confirm_tmp$mean_negativity, confirm_tmp$activated_distress, method="spearman")
 cor.test(confirm_tmp$mean_negativity, confirm_tmp$non_dep_anxiety, method="spearman")
@@ -271,6 +271,26 @@ tbl_regression(model_neg_simple_pc1,
                estimate_fun = ~style_sigfig(.x, digits = 3),
                label = list('PC1_score' = 'Activated Distress Score'))
 
+# Demographic Confoundings
+model_neg_full_pc1 <- lmer(
+  negativity_gpt ~  PC1_score + 
+                    word_counts + age + gender + edu + relative_abstractness_gpt + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_neg_full_pc1,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC1_score' = 'Activated Distress Score',
+                            'prompt_stage' = 'Scenario Stage',
+                            'word_counts' = 'Word Counts',
+                            'age' = 'Age',
+                            'gender' = 'Gender',
+                            'edu' = 'Education',
+                            'relative_abstractness_gpt' = 'GPT Relative Abstractness'))
+
+
 # No Demographic Confoundings
 model_neg_simple_pc3 <- lmer(
   negativity_gpt ~  PC3_score + 
@@ -283,14 +303,176 @@ tbl_regression(model_neg_simple_pc3,
                estimate_fun = ~style_sigfig(.x, digits = 3),
                label = list('PC3_score' = 'Non-Depressive Anxiety'))
 
+# Demographic Confoundings
+model_neg_full_pc3 <- lmer(
+  negativity_gpt ~  PC3_score + 
+                    word_counts + age + gender + edu + relative_abstractness_gpt + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_neg_full_pc3,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC3_score' = 'Non-Depressive Anxiety',
+                            'prompt_stage' = 'Scenario Stage',
+                            'word_counts' = 'Word Counts',
+                            'age' = 'Age',
+                            'gender' = 'Gender',
+                            'edu' = 'Education',
+                            'relative_abstractness_gpt' = 'GPT Relative Abstractness'))
 ```
+
+### Negativity Val Moderation (Others)
+```{r neg bias valence mod reg other PCA scores}
+# No Demographic Confoundings
+model_neg_val_moderate_simple_pc1 <- lmer(
+  negativity_gpt ~  PC1_score*prompt_val + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_neg_val_moderate_simple_pc1,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC1_score' = 'Activated Distress Score',
+                            'prompt_val' = 'Scenario Valence',
+                            'prompt_stage' = 'Scenario Stage'))
+
+model_neg_val_moderate_full_pc1 <- lmer(
+  negativity_gpt ~  PC1_score*prompt_val + 
+                    word_counts + age + gender + edu + relative_abstractness_gpt + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_neg_val_moderate_full_pc1,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC1_score' = 'Activated Distress Score',
+                            'prompt_val' = 'Scenario Valence',
+                            'prompt_stage' = 'Scenario Stage',
+                            'word_counts' = 'Word Counts',
+                            'age' = 'Age',
+                            'gender' = 'Gender',
+                            'edu' = 'Education',
+                            'relative_abstractness_gpt' = 'GPT Relative Abstractness'))
+
+# No Demographic Confoundings
+model_neg_val_moderate_simple_pc3 <- lmer(
+  negativity_gpt ~  PC3_score*prompt_val + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_neg_val_moderate_simple_pc3,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC3_score' = 'Non-Depressive Anxiety',
+                            'prompt_val' = 'Scenario Valence',
+                            'prompt_stage' = 'Scenario Stage'))
+
+# No Demographic Confoundings
+model_neg_val_moderate_full_pc3 <- lmer(
+  negativity_gpt ~  PC3_score*prompt_val + 
+                    word_counts + age + gender + edu + relative_abstractness_gpt + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_neg_val_moderate_full_pc3,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC3_score' = 'Non-Depressive Anxiety',
+                            'prompt_val' = 'Scenario Valence',
+                            'prompt_stage' = 'Scenario Stage',
+                            'word_counts' = 'Word Counts',
+                            'age' = 'Age',
+                            'gender' = 'Gender',
+                            'edu' = 'Education',
+                            'relative_abstractness_gpt' = 'GPT Relative Abstractness'))
+```
+
+### Negativity Stage Moderation (Others)
+```{r neg bias stage mod reg other PCA scores}
+# No Demographic Confoundings
+model_neg_stage_moderate_simple_pc1 <- lmer(
+  negativity_gpt ~  PC1_score*prompt_stage + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_neg_stage_moderate_simple_pc1,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC1_score' = 'Activated Distress Score',
+                            'prompt_val' = 'Scenario Valence',
+                            'prompt_stage' = 'Scenario Stage'))
+
+model_neg_stage_moderate_full_pc1 <- lmer(
+  negativity_gpt ~  PC1_score*prompt_stage + 
+                    word_counts + age + gender + edu + relative_abstractness_gpt + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_neg_stage_moderate_full_pc1,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC1_score' = 'Activated Distress Score',
+                            'prompt_val' = 'Scenario Valence',
+                            'prompt_stage' = 'Scenario Stage',
+                            'word_counts' = 'Word Counts',
+                            'age' = 'Age',
+                            'gender' = 'Gender',
+                            'edu' = 'Education',
+                            'relative_abstractness_gpt' = 'GPT Relative Abstractness'))
+
+# No Demographic Confoundings
+model_neg_stage_moderate_simple_pc3 <- lmer(
+  negativity_gpt ~  PC3_score*prompt_stage + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_neg_stage_moderate_simple_pc3,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC3_score' = 'Non-Depressive Anxiety',
+                            'prompt_val' = 'Scenario Valence',
+                            'prompt_stage' = 'Scenario Stage'))
+
+# No Demographic Confoundings
+model_neg_stage_moderate_full_pc3 <- lmer(
+  negativity_gpt ~  PC3_score*prompt_stage + 
+                    word_counts + age + gender + edu + relative_abstractness_gpt + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_neg_stage_moderate_full_pc3,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC3_score' = 'Non-Depressive Anxiety',
+                            'prompt_val' = 'Scenario Valence',
+                            'prompt_stage' = 'Scenario Stage',
+                            'word_counts' = 'Word Counts',
+                            'age' = 'Age',
+                            'gender' = 'Gender',
+                            'edu' = 'Education',
+                            'relative_abstractness_gpt' = 'GPT Relative Abstractness'))
+```
+
 
 ## Relative Abstractness
 ```{r relative abstractness corr}
 # Correlation: Trait Internalizing Symptoms ~ Mean Relative Abstractness
 confirm_tmp <- confirm_final %>% group_by(subj) %>%
-                            summarise(mean_relative_abstractness = mean(relative_abstractness_gpt, na.rm=T),
-                                      trait_internalizing = unique(PC2_score))
+                            summarise(mean_negativity = mean(negativity_gpt, na.rm=T),
+                                      mean_relative_abstractness = mean(relative_abstractness_gpt, na.rm=T),
+                                      activated_distress = unique(PC1_score),
+                                      trait_internalizing = unique(PC2_score),
+                                      non_dep_anxiety = unique(PC3_score))
 
 cor.test(confirm_tmp$mean_relative_abstractness, confirm_tmp$trait_internalizing, method="spearman")
 ```
@@ -327,6 +509,75 @@ tbl_regression(model_abs_full,
                             'negativity_gpt' = 'GPT Negativity'))
 ```
 
+### Relative Abstractness Main (Others)
+```{r abs main others}
+
+cor.test(confirm_tmp$mean_relative_abstractness, 
+         confirm_tmp$activated_distress, method="spearman")
+cor.test(confirm_tmp$mean_relative_abstractness, 
+         confirm_tmp$non_dep_anxiety, method="spearman")
+
+# PCA Component 1 ~ Negativity
+model_abs_simple_pc1 <- lmer(
+  relative_abstractness_gpt ~  PC1_score + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_abs_simple_pc1,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC1_score' = 'Activated General Distress'))
+
+# Including Demographic Confoundings
+model_abs_full_pc1 <- lmer(
+  relative_abstractness_gpt ~  PC1_score + 
+                    word_counts + age + gender + edu + negativity_gpt + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_abs_full_pc1,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC1_score' = 'Activated General Distress',
+                            'word_counts' = 'Word Counts',
+                            'age' = 'Age',
+                            'gender' = 'Gender',
+                            'edu' = 'Education',
+                            'negativity_gpt' = 'GPT Negativity'))
+
+# PCA Component 3 ~ Negativity
+model_abs_simple_pc3 <- lmer(
+  relative_abstractness_gpt ~  PC3_score + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_abs_simple_pc3,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC3_score' = 'Non-Depressive Anxiety Score'))
+
+# PCA Component 3 ~ Negativity
+model_abs_full_pc3 <- lmer(
+  relative_abstractness_gpt ~  PC3_score + 
+                    word_counts + age + gender + edu + negativity_gpt + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_abs_full_pc3,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC3_score' = 'Non-Depressive Anxiety Score',
+                            'word_counts' = 'Word Counts',
+                            'age' = 'Age',
+                            'gender' = 'Gender',
+                            'edu' = 'Education',
+                            'negativity_gpt' = 'GPT Negativity'))
+```
+
 ### Relative Abstractness Val Moderation
 ```{r abs valence moderation reg}
 # No Demographic Confoundings
@@ -354,6 +605,72 @@ tbl_regression(model_abs_moderate_full,
                pvalue_fun = label_style_pvalue(digits = 3),
                estimate_fun = ~style_sigfig(.x, digits = 3),
                label = list('PC2_score' = 'Trait Internalizing Score',
+                            'prompt_val' = 'Scenario Valence',
+                            'word_counts' = 'Word Counts',
+                            'age' = 'Age',
+                            'gender' = 'Gender',
+                            'edu' = 'Education',
+                            'negativity_gpt' = 'GPT Negativity'))
+```
+
+
+### Relative Abstractness Val Moderation (Others)
+```{r abs valence moderation reg others}
+# PCA1 Component ~ Negativity*Valence
+model_abs_moderate_simple_pc1 <- lmer(
+  relative_abstractness_gpt ~  PC1_score*prompt_val + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_abs_moderate_simple_pc1,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC1_score' = 'Activated General Distress',
+                            'prompt_val' = 'Scenario Valence'))
+
+model_abs_moderate_full_pc1 <- lmer(
+  relative_abstractness_gpt ~  PC1_score*prompt_val + 
+                    word_counts + age + gender + edu + negativity_gpt + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_abs_moderate_full_pc1,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC1_score' = 'Activated General Distress',
+                            'prompt_val' = 'Scenario Valence',
+                            'word_counts' = 'Word Counts',
+                            'age' = 'Age',
+                            'gender' = 'Gender',
+                            'edu' = 'Education',
+                            'negativity_gpt' = 'GPT Negativity'))
+
+# PCA3 Component ~ Negativity*Valence
+model_abs_moderate_simple_pc3 <- lmer(
+  relative_abstractness_gpt ~  PC3_score*prompt_val + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_abs_moderate_simple_pc3,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC3_score' = 'Non-Depressive Anxiety Score',
+                            'prompt_val' = 'Scenario Valence'))
+
+model_abs_moderate_full_pc3 <- lmer(
+  relative_abstractness_gpt ~  PC3_score*prompt_val + 
+                    word_counts + age + gender + edu + negativity_gpt + 
+  (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_abs_moderate_full_pc3,
+               pvalue_fun = label_style_pvalue(digits = 3),
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               label = list('PC3_score' = 'Non-Depressive Anxiety Score',
                             'prompt_val' = 'Scenario Valence',
                             'word_counts' = 'Word Counts',
                             'age' = 'Age',
@@ -425,7 +742,7 @@ ggsave(fig2,
 # -----------
 ```
 
-### Others Relative Abstractness Stage Moderation 
+### Relative Abstractness Stage Moderation (Others)
 ```{r abs stage moderation reg others}
 # No Demographic Confoundings
 model_abs_stage_moderate_simple_pc1 <- lmer(
@@ -440,6 +757,24 @@ tbl_regression(model_abs_stage_moderate_simple_pc1,
                label = list('PC1_score' = 'Activated General Distress Score',
                             'prompt_stage' = 'Scenario Stage'))
 
+model_abs_stage_moderate_full_pc1 <- lmer(
+  relative_abstractness_gpt ~  PC1_score*prompt_stage + 
+                        word_counts + age + gender + edu + negativity_gpt + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_abs_stage_moderate_full_pc1,
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               pvalue_fun = label_style_pvalue(digits = 3),
+               label = list('PC1_score' = 'Activated General Distress Score',
+                            'prompt_stage' = 'Scenario Stage',
+                            'word_counts' = 'Word Counts',
+                            'age' = 'Age',
+                            'gender' = 'Gender',
+                            'edu' = 'Education',
+                            'negativity_gpt' = 'GPT Negativity'))
+
 # No Demographic Confoundings
 model_abs_stage_moderate_simple_pc3 <- lmer(
   relative_abstractness_gpt ~  PC3_score*prompt_stage + 
@@ -452,6 +787,25 @@ tbl_regression(model_abs_stage_moderate_simple_pc3,
                pvalue_fun = label_style_pvalue(digits = 3),
                label = list('PC3_score' = 'Non-Depressive Anxiety Score',
                             'prompt_stage' = 'Scenario Stage'))
+
+# No Demographic Confoundings
+model_abs_stage_moderate_full_pc3 <- lmer(
+  relative_abstractness_gpt ~  PC3_score*prompt_stage + 
+                        word_counts + age + gender + edu + negativity_gpt + 
+    (1 | prolific_id) + (1 | prompt_val_set),
+  data = confirm_final
+)
+
+tbl_regression(model_abs_stage_moderate_full_pc3,
+               estimate_fun = ~style_sigfig(.x, digits = 3),
+               pvalue_fun = label_style_pvalue(digits = 3),
+               label = list('PC3_score' = 'Non-Depressive Anxiety Score',
+                            'prompt_stage' = 'Scenario Stage',
+                            'word_counts' = 'Word Counts',
+                            'age' = 'Age',
+                            'gender' = 'Gender',
+                            'edu' = 'Education',
+                            'negativity_gpt' = 'GPT Negativity'))
 ```
 
 ## Figure 3 Relative Abstractness Change 
